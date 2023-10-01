@@ -10,7 +10,7 @@ class Gradients(non_gradients.IGradient):
         self.tetta = tetta
 
     # return F, Psi, H, x_t0
-    def initVariables(self, mode):
+    def getValues(self, mode):
         # mode == 0 был необходим для первой лабы, для вычисления dxdt
         if mode == 0:
             self.F = np.array([[-0.8, 1.0], [self.tetta[0], 0]])
@@ -39,8 +39,6 @@ class Gradients(non_gradients.IGradient):
 
     def setTetta(self, tetta):
         self.tetta = tetta
-    def getValues(self):
-        return self.F, self.Psi, self.H, self.R, self.x0, self.u
 
     def dxdt(self, xi, tk):
         massive = [0, 0]
