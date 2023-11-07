@@ -93,35 +93,75 @@ class Xatk:
         xat0 = self.Soldering(a0, a1, a2)
         return xat0
 class Fatk:
-    def __init__(self, F, dF, Psi, dPsi, t, x0, dx0):
+    def __init__(self, F, dF):
+        self.F = F
+        self.dF = dF
+    def CountFatk(self, t):
+        O = np.array([[0., 0.], [0., 0.]])
+        eMatrix = TransisionMatrix()
+        a1 = np.hstack((eMatrix.CountMatrix(t[0], t[1], self.F), O, O))
+        a2 = np.hstack((eMatrix.CountMatrixdF(t[0], t[1], self.F, self.dF[0]), eMatrix.CountMatrix(t[0], t[1], self.F), O))
+        a3 = np.hstack((eMatrix.CountMatrixdF(t[0], t[1], self.F, self.dF[1]), O, eMatrix.CountMatrix(t[0], t[1], self.F)))
+        self.faMatrix = np.vstack((a1, a2, a3))
+        return self.faMatrix
+    def ReturnFatk(self):
+        return self.faMatrix
+
+class Atk:
+    def __init__(self, F, dF, Psi, dPsi, x0, dx0):
         self.F = F
         self.dF = dF
         self.Psi = Psi
         self.dPsi = dPsi
         self.x0 = x0
         self.dx0 = dx0
-        self.t = t
-    def CountFatk(self):
-        O = np.array([[0., 0.], [0., 0.]])
-        eMatrix = TransisionMatrix()
-        a1 = np.hstack((eMatrix.CountMatrix(self.t[0], self.t[1], self.F), O, O))
-        a2 = np.hstack((eMatrix.CountMatrixdF(self.t[0], self.t[1], self.F, self.dF[0]), eMatrix.CountMatrix(self.t[0], self.t[1], self.F), O))
-        a3 = np.hstack((eMatrix.CountMatrixdF(self.t[0], self.t[1], self.F, self.dF[1]), O, eMatrix.CountMatrix(self.t[0], self.t[1], self.F)))
-        faMatrix = np.vstack((a1, a2, a3))
-        return faMatrix
+    def CountAtk(self, t):
+        iMatrix = Xatk(self.F, self.dF, self.Psi, self.dPsi, t, self.x0, self.dx0)
+
+        a0 = integrate.quad_vec(Xatk.A0, t[0], t[1], args=(t[1], Xatk.LineElement2D(self.F), Xatk.LineElement2D(self.Psi)))[0]
+
+        a1 = integrate.quad_vec(Xatk.A1, t[0], t[1],
+                            args=(t[1], Xatk.LineElement2D(self.F), Xatk.LineElement2D(self.dF[0]),
+                                  Xatk.LineElement2D(self.Psi), Xatk.LineElement2D(self.dPsi[0])))[0]
+
+        a2 = integrate.quad_vec(Xatk.A1, t[0], t[1],
+                                args=(t[1], Xatk.LineElement2D(self.F), Xatk.LineElement2D(self.dF[1]),
+                                      Xatk.LineElement2D(self.Psi), Xatk.LineElement2D(self.dPsi[1])))[0]
+        self.atk = Xatk.Soldering(a0, a1, a2)
+        return self.atk
+    def ReturnAtk(self):
+        return self.atk
+
+def MatrixOfFisher(n ,s, H, dH, R, mFisher, cObject, xatk):
+    delta_M = np.array([[0., 0.], [0., 0.]])
+    for i in range(2):
+        for j in range(2):
+            A0 = reduce(np.dot, [dH[i], cObject.CountCi(I=0, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=0, n=n, s=s).transpose(), dH[j].transpose(), pow(R, -1)])
+
+            A1 = reduce(np.dot, [dH[i], cObject.CountCi(I=0, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=j + 1, n=n, s=s).transpose(), H.transpose(), pow(R, -1)])
+
+            A2 = reduce(np.dot, [H, cObject.CountCi(I=i + 1, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=0, n=n, s=s).transpose(), dH[j].transpose(), pow(R, -1)])
+
+            A3 = reduce(np.dot, [H, cObject.CountCi(I=i + 1, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=j + 1, n=n, s=s).transpose(), H.transpose(), pow(R, -1)])
+
+            delta_M[i][j] = A0 + A1 + A2 + A3
+    mFisher += delta_M
+    return mFisher
 
 def main():
     # Определение переменных
     m = q = v = nu = 1
-
     n = 2 # Размерность вектора х0
     s = 2 # Количество производных по тетта
     N = 3 # Число испытаний
-
-    count = 0
-
-    delta = 0.001
-
     tetta_true = np.array([-1.5, 1.0])
     tetta_false = np.array([-1, 1])
 
@@ -129,9 +169,21 @@ def main():
     F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_true, "IMF", N)
 
     xAObject = Xatk(F, dF, Psi, dPsi, t=[0., 1.], x0=x0, dx0=dx0)
-    xAObject.StartCountXatk()
-    FaObject = Fatk(F, dF, Psi, dPsi, t=[0., 1.], x0=x0, dx0=dx0)
-    FaObject.CountFatk()
+    FaObject = Fatk(F, dF)
+    AtkObject = Atk(F, dF, Psi, dPsi, x0=x0, dx0=dx0)
+    cObject = Ci()
 
+    mFisher = np.array([[0., 0.], [0., 0.]])
+
+    for k in range(N):
+        if k == 0:
+            xatk = xAObject.StartCountXatk()
+            mFisher = MatrixOfFisher(n ,s, H, dH, R, mFisher, cObject, xatk)
+            continue
+
+        fatk = FaObject.CountFatk(t=[0., 1.])
+        atk = AtkObject.CountAtk(t=[0., 1.])
+
+        a = 0
 
 main()
