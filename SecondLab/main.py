@@ -92,7 +92,23 @@ class Xatk:
                 self.LineElement2D(self.Psi), self.LineElement2D(self.dPsi[1])))[0]
         xat0 = self.Soldering(a0, a1, a2)
         return xat0
-
+class Fatk:
+    def __init__(self, F, dF, Psi, dPsi, t, x0, dx0):
+        self.F = F
+        self.dF = dF
+        self.Psi = Psi
+        self.dPsi = dPsi
+        self.x0 = x0
+        self.dx0 = dx0
+        self.t = t
+    def CountFatk(self):
+        O = np.array([[0., 0.], [0., 0.]])
+        eMatrix = TransisionMatrix()
+        a1 = np.hstack((eMatrix.CountMatrix(self.t[0], self.t[1], self.F), O, O))
+        a2 = np.hstack((eMatrix.CountMatrixdF(self.t[0], self.t[1], self.F, self.dF[0]), eMatrix.CountMatrix(self.t[0], self.t[1], self.F), O))
+        a3 = np.hstack((eMatrix.CountMatrixdF(self.t[0], self.t[1], self.F, self.dF[1]), O, eMatrix.CountMatrix(self.t[0], self.t[1], self.F)))
+        faMatrix = np.vstack((a1, a2, a3))
+        return faMatrix
 
 def main():
     # Определение переменных
@@ -114,6 +130,8 @@ def main():
 
     xAObject = Xatk(F, dF, Psi, dPsi, t=[0., 1.], x0=x0, dx0=dx0)
     xAObject.StartCountXatk()
+    FaObject = Fatk(F, dF, Psi, dPsi, t=[0., 1.], x0=x0, dx0=dx0)
+    FaObject.CountFatk()
 
 
 main()
