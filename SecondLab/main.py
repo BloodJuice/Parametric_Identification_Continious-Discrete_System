@@ -59,14 +59,19 @@ class Xatk:
         return result
 
     @staticmethod
+    def FakeIntegrate(x, t1):
+        a0 = np.array(t1) * x ** 2
+        return a0
+    @staticmethod
     def A0(x, t1, F, Psi):
         a0 = (np.dot(linalg.expm((np.array(F).reshape(2, 2)) * (t1 - x)), np.array(Psi).reshape(2, 1)))
         return a0
 
     def StartCountXatk(self):
         eMatrix = TransisionMatrix()
+        r0 = integrate.quad_vec(self.FakeIntegrate, self.t[0], self.t[1], args=(self.LineElement2D(self.F)))
         f0 = np.dot(eMatrix.CountMatrix(self.t[0], self.t[1], self.F, "0"), self.x0) + \
-             integrate.quad(self.A0, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.Psi)))
+             integrate.quad_vec(self.A0, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.Psi)))
         a1 = 0
 
 def FTransform(F):
