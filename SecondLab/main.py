@@ -32,11 +32,11 @@ class IMFVariablesSaver:
             return self.F, self.dF, self.Psi, self.dPsi, self.H, self.dH, self.R, self.dR, self.x0, self.dx0, self.u
 
 class TransisionMatrix:
-    def CountMatrix(self, t0, t1, F, flag):
-        if flag == "integral":
-            self.eMatrix = linalg.expm(F * (t1 - t0))
-        else:
-            self.eMatrix = linalg.expm(F * (t1 - t0))
+    def CountMatrix(self, t0, t1, F):
+        self.eMatrix = linalg.expm(F * (t1 - t0))
+        return self.eMatrix
+    def CountMatrixdF(self, t0, t1, F, dF):
+        self.eMatrix = np.dot(linalg.expm(F * (t1 - t0)), dF * (t1 - t0))
         return self.eMatrix
     def ReturnEMatrix(self):
         return self.eMatrix
@@ -60,21 +60,39 @@ class Xatk:
     @staticmethod
     def A0(x, t1, F, Psi):
         eMatrix = TransisionMatrix()
-        a0 = (np.dot(eMatrix.CountMatrix(x, t1, np.array(F).reshape(2, 2), "integral"), np.array(Psi).reshape(2, 1)))
+        a0 = np.dot(eMatrix.CountMatrix(x, t1, np.array(F).reshape(2, 2)), np.array(Psi).reshape(2, 1))
         return a0
 
+    @staticmethod
+    def A1(x, t1, F, dF, Psi, dPsi):
+        eMatrix = TransisionMatrix()
+        a1 = np.dot(eMatrix.CountMatrixdF(x, t1, np.array(F).reshape(2, 2), np.array(dF).reshape(2, 2)), np.array(Psi).reshape(2, 1)) + \
+             np.dot(eMatrix.CountMatrix(x, t1, np.array(F).reshape(2, 2)), np.array(dPsi).reshape(2, 1))
+        return a1
+
+    @staticmethod
+    def Soldering(a1, a2, a3):
+        result = []
+        for element in a1:
+            result.append(element)
+        for element in a2:
+            result.append(element)
+        for element in a3:
+            result.append(element)
+        return np.array(result)
     def StartCountXatk(self):
         eMatrix = TransisionMatrix()
-        b0 = eMatrix.CountMatrix(self.t[0], self.t[1], self.F, "0")
-        b1 = integrate.quad_vec(self.A0, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.Psi)))[0]
-        a0 = np.dot(b0, self.x0) + b1
-        a1 = 0
+        a0 = np.dot(eMatrix.CountMatrix(self.t[0], self.t[1], self.F), self.x0) + \
+             integrate.quad_vec(self.A0, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.Psi)))[0]
 
-def FTransform(F):
-    result = []
-    for line in F:
-        for element in line:
-            result.append(element)
+        a1 = integrate.quad_vec(self.A1, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.dF[0]),
+                self.LineElement2D(self.Psi), self.LineElement2D(self.dPsi[0])))[0]
+
+        a2 = integrate.quad_vec(self.A1, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.dF[1]),
+                self.LineElement2D(self.Psi), self.LineElement2D(self.dPsi[1])))[0]
+        xat0 = self.Soldering(a0, a1, a2)
+        return xat0
+
 
 def main():
     # Определение переменных
