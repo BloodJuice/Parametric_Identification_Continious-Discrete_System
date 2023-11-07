@@ -92,6 +92,8 @@ class Xatk:
                 self.LineElement2D(self.Psi), self.LineElement2D(self.dPsi[1])))[0]
         xat0 = self.Soldering(a0, a1, a2)
         return xat0
+    def ContinueCountXatk(self, fatk, atk, xatk):
+        return np.dot(fatk, xatk) + atk
 class Fatk:
     def __init__(self, F, dF):
         self.F = F
@@ -183,7 +185,8 @@ def main():
 
         fatk = FaObject.CountFatk(t=[0., 1.])
         atk = AtkObject.CountAtk(t=[0., 1.])
-
-        a = 0
+        xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
+        mFisher = MatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
+    a = 0
 
 main()
