@@ -166,6 +166,7 @@ def main():
     N = 3 # Число испытаний
     tetta_true = np.array([-1.5, 1.0])
     tetta_false = np.array([-1, 1])
+    t = np.arange(N + 1)
 
     varObject = IMFVariablesSaver()
     F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_true, "IMF", N)
@@ -183,8 +184,8 @@ def main():
             mFisher = MatrixOfFisher(n ,s, H, dH, R, mFisher, cObject, xatk)
             continue
 
-        fatk = FaObject.CountFatk(t=[0., 1.])
-        atk = AtkObject.CountAtk(t=[0., 1.])
+        fatk = FaObject.CountFatk(t=[t[k], t[k + 1]])
+        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]])
         xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
         mFisher = MatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
     a = 0
