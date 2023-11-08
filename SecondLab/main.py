@@ -15,13 +15,13 @@ class Ci:
 # return F, Psi, H, R, x0, u
 class IMFVariablesSaver:
     # modes: IMF, IMF_test, dIMF, dIMF_test
-    def Variables(self, tetta, mode, N):
+    def Variables(self, tetta, N, modeName, modeTest):
         # return: F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u
-        if mode == "IMF":
-            self.F = np.array([[-0.8, 1.], [tetta[0], 0.]])
-            self.dF = [np.array([[0., 0.], [1., 0.]]), np.array([[0., 0.], [0., 0.]])]
-            self.Psi = np.array([[tetta[1]], [1.]])
-            self.dPsi = [np.array([[0.], [0.]]), np.array([[1.], [0.]])]
+        if modeName == "IMF" and modeTest == 2:
+            self.F = np.array([-0.8, 1., tetta[0], 0.])
+            self.dF = [np.array([0., 0., 1., 0.]), np.array([0., 0., 0., 0.])]
+            self.Psi = np.array([tetta[1], 1.])
+            self.dPsi = [np.array([0., 0.]), np.array([1., 0.])]
             self.H = np.array([1., 0.])
             self.dH = [np.array([0., 0.]), np.array([0., 0.])]
             self.R = 0.1
@@ -30,16 +30,43 @@ class IMFVariablesSaver:
             self.dx0 = [np.array([[0.], [0.]]), np.array([[0.], [0.]])]
             self.u = np.array([[1.] for i in range(N)])
             return self.F, self.dF, self.Psi, self.dPsi, self.H, self.dH, self.R, self.dR, self.x0, self.dx0, self.u
+        elif modeName == "IMF" and modeTest == 1:
+            self.F = np.array([[0.]])
+            self.dF = [np.array([[0.]]), np.array([[0.]])]
+            self.Psi = np.array([[tetta[0], tetta[1]]])
+            self.dPsi = [np.array([[1., 0.]]), np.array([[0., 1.]])]
+            self.H = np.array([1.])
+            self.dH = [np.array([0.]), np.array([0.])]
+            self.R = 0.3
+            self.dR = [0., 0.]
+            self.x0 = np.zeros((1, 1))
+            self.dx0 = [np.zeros((1, 1)) for i in range(2)]
+            self.u = np.array([[1.] for i in range(N)])
+            return self.F, self.dF, self.Psi, self.dPsi, self.H, self.dH, self.R, self.dR, self.x0, self.dx0, self.u
 
 class TransisionMatrix:
-    def CountMatrix(self, t0, t1, F):
-        self.eMatrix = linalg.expm(F * (t1 - t0))
-        return self.eMatrix
-    def CountMatrixdF(self, t0, t1, F, dF):
-        self.eMatrix = np.dot(linalg.expm(F * (t1 - t0)), dF * (t1 - t0))
-        return self.eMatrix
-    def ReturnEMatrix(self):
-        return self.eMatrix
+    rP = [0., 0., 0., 0.]
+    @staticmethod
+    def CountMatrix(t0, t1, F, rParam):
+        a = (F).reshape((rParam[0], rParam[1]))
+        eMatrix = linalg.expm(np.array(F).reshape(rParam[0], rParam[1]) * (t1 - t0))
+        return eMatrix
+    @staticmethod
+    def CountMatrixdF(t0, t1, F, dF, rParam):
+        eMatrix = np.dot(linalg.expm(np.array(F).reshape(rParam[0], rParam[1]) * (t1 - t0)),
+                              np.array(dF).reshape(rParam[0], rParam[1]) * (t1 - t0))
+        return eMatrix
+class IntegrateMethods:
+    @staticmethod
+    def A0(x, t1, F, Psi, eMatrix):
+        a0 = np.dot(eMatrix.CountMatrix(x, t1, F, eMatrix.rP),
+                    np.array(Psi).reshape(eMatrix.rP[2], eMatrix.rP[3]))
+        return a0
+    @staticmethod
+    def A1(x, t1, F, dF, Psi, dPsi, eMatrix):
+        a1 = np.dot(eMatrix.CountMatrixdF(x, t1, F, dF, eMatrix.rP), np.array(Psi).reshape(eMatrix.rP[2], eMatrix.rP[3])) + \
+                    np.dot(eMatrix.CountMatrix(x, t1, F, eMatrix.rP), np.array(dPsi).reshape(eMatrix.rP[2], eMatrix.rP[3]))
+        return a1
 class Xatk:
     def __init__(self, F, dF, Psi, dPsi, t, x0, dx0):
         self.F = F
@@ -57,18 +84,6 @@ class Xatk:
             for element in line:
                 result.append(element)
         return result
-    @staticmethod
-    def A0(x, t1, F, Psi):
-        eMatrix = TransisionMatrix()
-        a0 = np.dot(eMatrix.CountMatrix(x, t1, np.array(F).reshape(2, 2)), np.array(Psi).reshape(2, 1))
-        return a0
-
-    @staticmethod
-    def A1(x, t1, F, dF, Psi, dPsi):
-        eMatrix = TransisionMatrix()
-        a1 = np.dot(eMatrix.CountMatrixdF(x, t1, np.array(F).reshape(2, 2), np.array(dF).reshape(2, 2)), np.array(Psi).reshape(2, 1)) + \
-             np.dot(eMatrix.CountMatrix(x, t1, np.array(F).reshape(2, 2)), np.array(dPsi).reshape(2, 1))
-        return a1
 
     @staticmethod
     def Soldering(a1, a2, a3):
@@ -80,16 +95,17 @@ class Xatk:
         for element in a3:
             result.append(element)
         return np.array(result)
-    def StartCountXatk(self):
-        eMatrix = TransisionMatrix()
-        a0 = np.dot(eMatrix.CountMatrix(self.t[0], self.t[1], self.F), self.x0) + \
-             integrate.quad_vec(self.A0, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.Psi)))[0]
+    def StartCountXatk(self, eMatrix, iMartix):
+        a0 = integrate.quad_vec(iMartix.A0, self.t[0], self.t[1],
+                                args=(self.t[1], self.F, self.Psi, eMatrix))[0]
 
-        a1 = integrate.quad_vec(self.A1, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.dF[0]),
-                self.LineElement2D(self.Psi), self.LineElement2D(self.dPsi[0])))[0]
+        a1 = integrate.quad_vec(iMartix.A1, self.t[0], self.t[1],
+                                args=(self.t[1], (self.F), (self.dF[0]),
+                                self.Psi, self.dPsi[0], eMatrix))[0]
 
-        a2 = integrate.quad_vec(self.A1, self.t[0], self.t[1], args=(self.t[1], self.LineElement2D(self.F), self.LineElement2D(self.dF[1]),
-                self.LineElement2D(self.Psi), self.LineElement2D(self.dPsi[1])))[0]
+        a2 = integrate.quad_vec(iMartix.A1, self.t[0], self.t[1],
+                                args=(self.t[1], self.F, self.dF[1],
+                                self.Psi, self.dPsi[1], eMatrix))[0]
         xat0 = self.Soldering(a0, a1, a2)
         return xat0
     def ContinueCountXatk(self, fatk, atk, xatk):
@@ -98,12 +114,15 @@ class Fatk:
     def __init__(self, F, dF):
         self.F = F
         self.dF = dF
-    def CountFatk(self, t):
+    def CountFatk(self, t, eMatrix):
         O = np.array([[0., 0.], [0., 0.]])
-        eMatrix = TransisionMatrix()
-        a1 = np.hstack((eMatrix.CountMatrix(t[0], t[1], self.F), O, O))
-        a2 = np.hstack((eMatrix.CountMatrixdF(t[0], t[1], self.F, self.dF[0]), eMatrix.CountMatrix(t[0], t[1], self.F), O))
-        a3 = np.hstack((eMatrix.CountMatrixdF(t[0], t[1], self.F, self.dF[1]), O, eMatrix.CountMatrix(t[0], t[1], self.F)))
+        a1 = np.hstack((eMatrix.CountMatrix(t[0], t[1], self.F, eMatrix.rP), O, O))
+
+        a2 = np.hstack((eMatrix.CountMatrixdF(t[0], t[1], self.F, self.dF[0], eMatrix.rP),
+                        eMatrix.CountMatrix(t[0], t[1], self.F, eMatrix.rP), O))
+
+        a3 = np.hstack((eMatrix.CountMatrixdF(t[0], t[1], self.F, self.dF[1], eMatrix.rP), O,
+                        eMatrix.CountMatrix(t[0], t[1], self.F, eMatrix.rP)))
         self.faMatrix = np.vstack((a1, a2, a3))
         return self.faMatrix
     def ReturnFatk(self):
@@ -117,18 +136,16 @@ class Atk:
         self.dPsi = dPsi
         self.x0 = x0
         self.dx0 = dx0
-    def CountAtk(self, t):
-        iMatrix = Xatk(self.F, self.dF, self.Psi, self.dPsi, t, self.x0, self.dx0)
+    def CountAtk(self, t, eMatrix, iMatrix):
+        a0 = integrate.quad_vec(iMatrix.A0, t[0], t[1], args=(t[1], self.F, self.Psi, eMatrix))[0]
 
-        a0 = integrate.quad_vec(Xatk.A0, t[0], t[1], args=(t[1], Xatk.LineElement2D(self.F), Xatk.LineElement2D(self.Psi)))[0]
+        a1 = integrate.quad_vec(iMatrix.A1, t[0], t[1],
+                            args=(t[1], self.F, self.dF[0],
+                                  self.Psi, self.dPsi[0], eMatrix))[0]
 
-        a1 = integrate.quad_vec(Xatk.A1, t[0], t[1],
-                            args=(t[1], Xatk.LineElement2D(self.F), Xatk.LineElement2D(self.dF[0]),
-                                  Xatk.LineElement2D(self.Psi), Xatk.LineElement2D(self.dPsi[0])))[0]
-
-        a2 = integrate.quad_vec(Xatk.A1, t[0], t[1],
-                                args=(t[1], Xatk.LineElement2D(self.F), Xatk.LineElement2D(self.dF[1]),
-                                      Xatk.LineElement2D(self.Psi), Xatk.LineElement2D(self.dPsi[1])))[0]
+        a2 = integrate.quad_vec(iMatrix.A1, t[0], t[1],
+                                args=(t[1], self.F, self.dF[1],
+                                      self.Psi, self.dPsi[1], eMatrix))[0]
         self.atk = Xatk.Soldering(a0, a1, a2)
         return self.atk
     def ReturnAtk(self):
@@ -168,9 +185,19 @@ def main():
     tetta_false = np.array([-1, 1])
     t = np.arange(N + 1)
 
-    varObject = IMFVariablesSaver()
-    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_true, "IMF", N)
+    if n == 1:
+        params = [1, 1, 1, 2] # Reshape params for test
+    else:
+        params = [2, 2, 2, 1] # F (2, 2) and Psi (2, 1)
 
+    varObject = IMFVariablesSaver()
+
+    # Choose Test or NoTest
+    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_true, N, "IMF", modeTest=n)
+
+    eMatrix = TransisionMatrix()
+    eMatrix.rP = params
+    iMatrix = IntegrateMethods()
     xAObject = Xatk(F, dF, Psi, dPsi, t=[0., 1.], x0=x0, dx0=dx0)
     FaObject = Fatk(F, dF)
     AtkObject = Atk(F, dF, Psi, dPsi, x0=x0, dx0=dx0)
@@ -180,12 +207,12 @@ def main():
 
     for k in range(N):
         if k == 0:
-            xatk = xAObject.StartCountXatk()
+            xatk = xAObject.StartCountXatk(eMatrix, iMatrix)
             mFisher = MatrixOfFisher(n ,s, H, dH, R, mFisher, cObject, xatk)
             continue
 
-        fatk = FaObject.CountFatk(t=[t[k], t[k + 1]])
-        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]])
+        fatk = FaObject.CountFatk(t=[t[k], t[k + 1]], eMatrix=eMatrix)
+        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], eMatrix=eMatrix, iMatrix=iMatrix)
         xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
         mFisher = MatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
     a = 0
