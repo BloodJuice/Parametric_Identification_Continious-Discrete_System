@@ -187,9 +187,9 @@ def main():
     m = q = v = nu = 1
     n = 2 # Размерность вектора х0
     s = 2 # Количество производных по тетта
-    N = 50 # Число испытаний
+    N = 11 # Число испытаний
     tetta_true = np.array([-1.5, 1.0])
-    tetta_false = np.array([-1, 1.5])
+    tetta_false = np.array([-1., 1.])
     t = []
 
     if n == 1:
@@ -208,7 +208,7 @@ def main():
     varObject = IMFVariablesSaver()
 
     # Choose Test or NoTest
-    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_true, N, "IMF", modeTest=n)
+    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_false, N, "IMF", modeTest=n)
 
     eMatrix = TransisionMatrix()
     eMatrix.rP = params
