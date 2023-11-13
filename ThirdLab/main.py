@@ -57,9 +57,15 @@ class TransisionMatrix:
                               np.array(dF).reshape(rParam[0], rParam[1]) * (t1 - t0))
         return eMatrix
 class IntegrateMethods:
-    u = [[]]
+    u = np.array([[]])
     @staticmethod
     def A0(x, t1, F, Psi, u, index, eMatrix):
+        b0 = np.array(Psi).reshape(eMatrix.rP[2], eMatrix.rP[3])
+        b_0 = u[index]
+        b1 = np.dot(np.array(Psi).reshape(eMatrix.rP[2], eMatrix.rP[3]), u[index])
+        b2 = eMatrix.CountMatrix(x, t1, F, eMatrix.rP)
+        b3 = np.dot(b2, b0)
+        b4 = np.dot(b3, u[index])
         a0 = reduce(np.dot, [eMatrix.CountMatrix(x, t1, F, eMatrix.rP),
                     np.array(Psi).reshape(eMatrix.rP[2], eMatrix.rP[3]), u[index]])
         return a0
@@ -82,18 +88,8 @@ class Xatk:
         self.dx0 = dx0
         self.t = t
 
-    @staticmethod
-    def Soldering(a1, a2, a3):
-        result = []
-        for element in a1:
-            result.append(element)
-        for element in a2:
-            result.append(element)
-        for element in a3:
-            result.append(element)
-        return np.array(result)
     def StartCountXatk(self, index, eMatrix, iMartix):
-        u = iMartix.u
+        u = np.array(iMartix.u)
         a0 = integrate.quad_vec(iMartix.A0, self.t[0], self.t[1],
                                 args=(self.t[1], self.F, self.Psi, u, index, eMatrix))[0]
 
@@ -104,7 +100,7 @@ class Xatk:
         a2 = integrate.quad_vec(iMartix.A1, self.t[0], self.t[1],
                                 args=(self.t[1], self.F, self.dF[1],
                                 self.Psi, self.dPsi[1], u, index, eMatrix))[0]
-        xat0 = self.Soldering(a0, a1, a2)
+        xat0 = np.hstack((a0, a1, a2))
         return xat0
     def ContinueCountXatk(self, fatk, atk, xatk):
         return np.dot(fatk, xatk) + atk
@@ -119,16 +115,6 @@ class dXatk:
         self.dx0 = dx0
         self.t = t
 
-    @staticmethod
-    def Soldering(a1, a2, a3):
-        result = []
-        for element in a1:
-            result.append(element)
-        for element in a2:
-            result.append(element)
-        for element in a3:
-            result.append(element)
-        return np.array(result)
     def StartCountXatk(self, datk):
         dXt0du = datk
         return dXt0du
@@ -171,19 +157,8 @@ class Atk:
         a2 = integrate.quad_vec(iMatrix.A1, t[0], t[1],
                                 args=(t[1], self.F, self.dF[1],self.Psi, self.dPsi[1], u, index, eMatrix))[0]
 
-        self.atk = Atk.Soldering(a0, a1, a2)
+        self.atk = np.vstack((a0, a1, a2))
         return self.atk
-
-    @staticmethod
-    def Soldering(a1, a2, a3):
-        result = []
-        for element in a1:
-            result.append(element)
-        for element in a2:
-            result.append(element)
-        for element in a3:
-            result.append(element)
-        return np.array(result)
 
     def ReturnAtk(self):
         return self.atk
@@ -197,13 +172,16 @@ class dAtk:
         self.x0 = x0
         self.dx0 = dx0
         self.N = N
-    def CountAtk(self, t, k, betta, alpha, eMatrix, iMatrix):
-        u, index = [1], 0
-        dudua = np.zeros((self.N, 1))
+    def CountAtk(self, t, n, k, betta, alpha, eMatrix, iMatrix):
+        u, index = [1.], 0
+        if n == 1:
+            dudua = np.zeros((self.N, 1))
+        else:
+            dudua = 1.
 
-        if betta == k:
-            dudua[alpha] = 1
-        f = integrate.quad_vec(iMatrix.A0, t[0], t[1], args=(t[1], self.F, self.Psi, u, index, eMatrix))[0]
+        if (betta == k) and (n == 1):
+            dudua[alpha] = 1.
+
         a0 = np.dot(integrate.quad_vec(iMatrix.A0, t[0], t[1], args=(t[1], self.F, self.Psi, u, index, eMatrix))[0], dudua)
 
         a1 = np.dot(integrate.quad_vec(iMatrix.A1, t[0], t[1],
@@ -212,29 +190,11 @@ class dAtk:
         a2 = np.dot(integrate.quad_vec(iMatrix.A1, t[0], t[1],
                                 args=(t[1], self.F, self.dF[1],self.Psi, self.dPsi[1], u, index, eMatrix))[0], dudua)
 
-        self.datk = dAtk.Soldering(a0, a1, a2)
+        self.datk = np.vstack((a0, a1, a2))
         return self.datk
-
-    @staticmethod
-    def Soldering(a1, a2, a3):
-        result = []
-        for element in a1:
-            result.append(element)
-        for element in a2:
-            result.append(element)
-        for element in a3:
-            result.append(element)
-        return np.array(result)
 
     def ReturnAtk(self):
         return self.datk
-
-def dMatrixOfFisherGenerator(r, N):
-    dmFisher = np.zeros((N, r, 2, 2))
-    # dmLocal = [np.zeros((2, 2)) for alpha in range(r)]
-    # for betta in range(N):
-    #     dmFisher.append(dmLocal)
-    return dmFisher
 
 def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
     delta_M = np.array([[0., 0.], [0., 0.]])
@@ -266,7 +226,7 @@ def main():
     r = 1 # Размерность вектора управления
     n = 2 # Размерность вектора х0
     s = 2 # Количество производных по тетта
-    N = 2 # Число испытаний
+    N = 20 # Число испытаний
     tetta_true = np.array([-1.5, 1.0])
     tetta_false = np.array([-1., 1.])
     t = []
@@ -300,27 +260,27 @@ def main():
     dAtkObject = dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
     cObject = Ci()
 
-    dmFisher = dMatrixOfFisherGenerator(r, N)
-    datk, dxatk = [], np.zeros((N, r, N, 3, 1)) # shape: N, alpha, betta
+    dmFisher = np.zeros((N, r, 2, 2))
+    datk, dxatk = [], np.zeros((N, r, N, 3 * n, 1)) # shape: N, alpha, betta
 
     for k in range(N):
         if k == 0:
-            xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix)
+            xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix).reshape(3*n, 1)
             for betta in range(N):
                 for alpha in range(r):
-                    datk.append(dAtkObject.CountAtk(t=[t[0], t[1]], k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
+                    datk.append(dAtkObject.CountAtk(t=[t[0], t[1]], n=n, k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
                     dxatk[k][alpha][betta] = dxAObject.StartCountXatk(datk[alpha])
                     dmFisher[k][alpha] += dMatrixOfFisher(n, s, H, dH, R, cObject, xatk, dxatk[k][alpha][betta])
                 datk.clear()
             continue
 
         fatk = FaObject.CountFatk(t=[t[k], t[k + 1]], eMatrix=eMatrix)
-        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], index=k, eMatrix=eMatrix, iMatrix=iMatrix)
+        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], index=k, eMatrix=eMatrix, iMatrix=iMatrix).reshape(3*n,1)
         xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
 
         for betta in range(N):
             for alpha in range(r):
-                datk.append(dAtkObject.CountAtk(t=[t[k], t[k + 1]], k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
+                datk.append(dAtkObject.CountAtk(t=[t[k], t[k + 1]], n=n, k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
                 dxatk[k][alpha][betta] = (dxAObject.ContinueCountXatk(fatk, datk[alpha], dxatk[k - 1][alpha][betta]))
                 dmFisher[k][alpha] += dMatrixOfFisher(n, s, H, dH, R, cObject, xatk, dxatk[k][alpha][betta])
             datk.clear()
