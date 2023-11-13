@@ -203,7 +203,7 @@ class dAtk:
 
         if betta == k:
             dudua[alpha] = 1
-
+        f = integrate.quad_vec(iMatrix.A0, t[0], t[1], args=(t[1], self.F, self.Psi, u, index, eMatrix))[0]
         a0 = np.dot(integrate.quad_vec(iMatrix.A0, t[0], t[1], args=(t[1], self.F, self.Psi, u, index, eMatrix))[0], dudua)
 
         a1 = np.dot(integrate.quad_vec(iMatrix.A1, t[0], t[1],
@@ -230,45 +230,45 @@ class dAtk:
         return self.datk
 
 def dMatrixOfFisherGenerator(r, N):
-    dmFisher = []
-    dmLocal = [np.zeros((2, 2)) for alpha in range(r)]
-    for betta in range(N):
-        dmFisher.append(dmLocal)
+    dmFisher = np.zeros((N, r, 2, 2))
+    # dmLocal = [np.zeros((2, 2)) for alpha in range(r)]
+    # for betta in range(N):
+    #     dmFisher.append(dmLocal)
     return dmFisher
 
-def dMatrixOfFisher(n ,s, H, dH, R, mFisher, cObject, xatk):
+def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
     delta_M = np.array([[0., 0.], [0., 0.]])
+    coeff_dxa_tk_plus_one = np.dot(dxatk, xatk.transpose()) + np.dot(xatk, dxatk.transpose())
     for i in range(2):
         for j in range(2):
             A0 = reduce(np.dot, [dH[i], cObject.CountCi(I=0, n=n, s=s),
-                                 xatk, xatk.transpose(),
+                                 coeff_dxa_tk_plus_one,
                                  cObject.CountCi(I=0, n=n, s=s).transpose(), dH[j].transpose(), pow(R, -1)])
 
             A1 = reduce(np.dot, [dH[i], cObject.CountCi(I=0, n=n, s=s),
-                                 xatk, xatk.transpose(),
+                                 coeff_dxa_tk_plus_one,
                                  cObject.CountCi(I=j + 1, n=n, s=s).transpose(), H.transpose(), pow(R, -1)])
 
             A2 = reduce(np.dot, [H, cObject.CountCi(I=i + 1, n=n, s=s),
-                                 xatk, xatk.transpose(),
+                                 coeff_dxa_tk_plus_one,
                                  cObject.CountCi(I=0, n=n, s=s).transpose(), dH[j].transpose(), pow(R, -1)])
 
             A3 = reduce(np.dot, [H, cObject.CountCi(I=i + 1, n=n, s=s),
-                                 xatk, xatk.transpose(),
+                                 coeff_dxa_tk_plus_one,
                                  cObject.CountCi(I=j + 1, n=n, s=s).transpose(), H.transpose(), pow(R, -1)])
 
             delta_M[i][j] = A0 + A1 + A2 + A3
-    mFisher += delta_M
-    return mFisher
+    return delta_M
 
 def main():
     # Определение переменных
     m = q = v = nu = 1
-    r = 2 # Размерность вектора управления
-    n = 1 # Размерность вектора х0
+    r = 1 # Размерность вектора управления
+    n = 2 # Размерность вектора х0
     s = 2 # Количество производных по тетта
     N = 2 # Число испытаний
     tetta_true = np.array([-1.5, 1.0])
-    tetta_false = np.array([1., 1.])
+    tetta_false = np.array([-1., 1.])
     t = []
 
     if n == 1:
@@ -300,25 +300,32 @@ def main():
     dAtkObject = dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
     cObject = Ci()
 
-    mFisher = np.array([[0., 0.], [0., 0.]])
     dmFisher = dMatrixOfFisherGenerator(r, N)
-    datk, dxatk = [], []
+    datk, dxatk = [], np.zeros((N, r, N, 3, 1)) # shape: N, alpha, betta
 
     for k in range(N):
         if k == 0:
             xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix)
             for betta in range(N):
-                for alhpa in range(r):
-                    datk.append(dAtkObject.CountAtk(t=[t[0], t[1]], k=0, betta=1, alpha=1, eMatrix=eMatrix, iMatrix=iMatrix))
-                    dxatk.append(dxAObject.StartCountXatk(datk[alhpa]))
-                    dmFisher = dMatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
+                for alpha in range(r):
+                    datk.append(dAtkObject.CountAtk(t=[t[0], t[1]], k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
+                    dxatk[k][alpha][betta] = dxAObject.StartCountXatk(datk[alpha])
+                    dmFisher[k][alpha] += dMatrixOfFisher(n, s, H, dH, R, cObject, xatk, dxatk[k][alpha][betta])
+                datk.clear()
             continue
 
         fatk = FaObject.CountFatk(t=[t[k], t[k + 1]], eMatrix=eMatrix)
         atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], index=k, eMatrix=eMatrix, iMatrix=iMatrix)
         xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
-        mFisher = dMatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
-    print(mFisher)
+
+        for betta in range(N):
+            for alpha in range(r):
+                datk.append(dAtkObject.CountAtk(t=[t[k], t[k + 1]], k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
+                dxatk[k][alpha][betta] = (dxAObject.ContinueCountXatk(fatk, datk[alpha], dxatk[k - 1][alpha][betta]))
+                dmFisher[k][alpha] += dMatrixOfFisher(n, s, H, dH, R, cObject, xatk, dxatk[k][alpha][betta])
+            datk.clear()
+
+    print(dmFisher)
     a = 0
 
 main()
