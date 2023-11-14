@@ -184,13 +184,17 @@ class dAtk:
         self.N = N
     def CountAtk(self, t, n, k, betta, alpha, eMatrix, iMatrix):
         u, index = [1.], 0
-        if n == 1:
-            dudua = np.zeros((self.N, 1))
-        else:
-            dudua = 1.
 
         if (betta == k) and (n == 1):
+            dudua = np.zeros((self.N, 1))
             dudua[alpha] = 1.
+        elif (betta != k) and (n == 1):
+            dudua = np.zeros((self.N, 1))
+        elif (betta == k) and (n == 2):
+            dudua = 1.
+        elif (betta != k) and (n == 2):
+            dudua = 0.
+
 
         a0 = np.dot(integrate.quad_vec(iMatrix.A0, t[0], t[1], args=(t[1], self.F, self.Psi, u, index, eMatrix))[0], dudua)
 
@@ -256,7 +260,7 @@ def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
             delta_M[i][j] = A0 + A1 + A2 + A3
     return delta_M
 
-def IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix):
+def IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix, deltaForTest):
     n = params['n']
     t = params['t']
     s = params['s']
@@ -265,6 +269,7 @@ def IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix):
     dH = params['dH']
     R = params['R']
     mFisher = np.array([[0., 0.], [0., 0.]])
+    iMatrix.u += deltaForTest
 
     for k in range(N):
         if k == 0:
@@ -316,10 +321,10 @@ def dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, 
 def main():
     # Определение переменных
     m = q = v = nu = 1
-    r = 1 # Размерность вектора управления
-    n = 2 # Размерность вектора х0
+    r = 2 # Размерность вектора управления
+    n = 1 # Размерность вектора х0
     s = 2 # Количество производных по тетта
-    N = 20 # Число испытаний
+    N = 2 # Число испытаний
     tetta_true = np.array([-1.5, 1.0])
     tetta_false = np.array([-1., 1.])
     t = []
@@ -354,11 +359,17 @@ def main():
     dAtkObject = dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
     cObject = Ci()
 
-    # print(IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix))
-    print(dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix))
+    deltaForTest = 0.001
+    a0 = IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix, deltaForTest=0.)
+    a1 = IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix, deltaForTest=deltaForTest)
+    print((a1 - a0) / deltaForTest)
 
+    da0 = dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)
+    dMdu_count = np.zeros((2, 2))
+    for i in range(N):
+        for j in range(r):
+            dMdu_count += da0[i][j]
+    print(dMdu_count)
 
-
-    a = 0
 
 main()
