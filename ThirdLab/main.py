@@ -196,6 +196,9 @@ class dAtk:
     def ReturnAtk(self):
         return self.datk
 
+
+
+
 def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
     delta_M = np.array([[0., 0.], [0., 0.]])
     coeff_dxa_tk_plus_one = np.dot(dxatk, xatk.transpose()) + np.dot(xatk, dxatk.transpose())
@@ -220,49 +223,17 @@ def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
             delta_M[i][j] = A0 + A1 + A2 + A3
     return delta_M
 
-def main():
-    # Определение переменных
-    m = q = v = nu = 1
-    r = 1 # Размерность вектора управления
-    n = 2 # Размерность вектора х0
-    s = 2 # Количество производных по тетта
-    N = 20 # Число испытаний
-    tetta_true = np.array([-1.5, 1.0])
-    tetta_false = np.array([-1., 1.])
-    t = []
-
-    if n == 1:
-        count = 0
-        params = [1, 1, 1, 2] # Reshape params for test
-        for i in range(N + 1):
-            if i == 0:
-                t.append(count)
-            else:
-                count += 0.5
-                t.append(count)
-    else:
-        params = [2, 2, 2, 1] # F (2, 2) and Psi (2, 1)
-        t = np.arange(N + 1)
-
-    varObject = IMFVariablesSaver()
-
-    # Choose Test or NoTest
-    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_false, N, "IMF", modeTest=n)
-
-    eMatrix = TransisionMatrix()
-    eMatrix.rP = params
-    iMatrix = IntegrateMethods()
-    iMatrix.u = u
-    xAObject = Xatk(F, dF, Psi, dPsi, t=[t[0], t[1]], x0=x0, dx0=dx0)
-    dxAObject = dXatk(F, dF, Psi, dPsi, t=[t[0], t[1]], x0=x0, dx0=dx0)
-    FaObject = Fatk(F, dF)
-    AtkObject = Atk(F, dF, Psi, dPsi, x0=x0, dx0=dx0)
-    dAtkObject = dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
-    cObject = Ci()
-
+def dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix):
+    n = params['n']
+    t = params['t']
+    s = params['s']
+    N = params['N']
+    r = params['r']
+    H = params['H']
+    dH = params['dH']
+    R = params['R']
     dmFisher = np.zeros((N, r, 2, 2))
-    datk, dxatk = [], np.zeros((N, r, N, 3 * n, 1)) # shape: N, alpha, betta
-
+    datk, dxatk = [], np.zeros((N, r, N, 3 * n, 1))  # shape: N, alpha, betta
     for k in range(N):
         if k == 0:
             xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix).reshape(3*n, 1)
@@ -285,7 +256,53 @@ def main():
                 dmFisher[k][alpha] += dMatrixOfFisher(n, s, H, dH, R, cObject, xatk, dxatk[k][alpha][betta])
             datk.clear()
 
-    print(dmFisher)
+    return dmFisher
+
+def main():
+    # Определение переменных
+    m = q = v = nu = 1
+    r = 1 # Размерность вектора управления
+    n = 2 # Размерность вектора х0
+    s = 2 # Количество производных по тетта
+    N = 20 # Число испытаний
+    tetta_true = np.array([-1.5, 1.0])
+    tetta_false = np.array([-1., 1.])
+    t = []
+
+    if n == 1:
+        count = 0
+        param = [1, 1, 1, 2] # Reshape params for test
+        for i in range(N + 1):
+            if i == 0:
+                t.append(count)
+            else:
+                count += 0.5
+                t.append(count)
+    else:
+        param = [2, 2, 2, 1] # F (2, 2) and Psi (2, 1)
+        t = np.arange(N + 1)
+
+    varObject = IMFVariablesSaver()
+
+    # Choose Test or NoTest
+    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_false, N, "IMF", modeTest=n)
+    params = {"F": F, "dF": dF, "Psi": Psi, "dPsi": dPsi, "H": H, "dH": dH, "R": R,
+              "dR": dR, "x0": x0, "dx0": dx0, "N": N, "n": n, "t": t, "s": s, "r": r}
+    eMatrix = TransisionMatrix()
+    eMatrix.rP = param
+    iMatrix = IntegrateMethods()
+    iMatrix.u = u
+    xAObject = Xatk(F, dF, Psi, dPsi, t=[t[0], t[1]], x0=x0, dx0=dx0)
+    dxAObject = dXatk(F, dF, Psi, dPsi, t=[t[0], t[1]], x0=x0, dx0=dx0)
+    FaObject = Fatk(F, dF)
+    AtkObject = Atk(F, dF, Psi, dPsi, x0=x0, dx0=dx0)
+    dAtkObject = dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
+    cObject = Ci()
+
+    print(dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix))
+
+
+
     a = 0
 
 main()
