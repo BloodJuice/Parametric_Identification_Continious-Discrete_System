@@ -28,7 +28,7 @@ class IMFVariablesSaver:
             self.dR = [0., 0.]
             self.x0 = np.array([[0.], [0.]])
             self.dx0 = [np.array([[0.], [0.]]), np.array([[0.], [0.]])]
-            self.u = np.array([[1.] for i in range(N)])
+            self.u = np.array([1. for i in range(N)])
             return self.F, self.dF, self.Psi, self.dPsi, self.H, self.dH, self.R, self.dR, self.x0, self.dx0, self.u
         elif modeName == "IMF" and modeTest == 1:
             self.F = np.array([[0.]])
@@ -88,6 +88,16 @@ class Xatk:
         self.dx0 = dx0
         self.t = t
 
+    @staticmethod
+    def Soldering(a1, a2, a3):
+        result = []
+        for element in a1:
+            result.append(element)
+        for element in a2:
+            result.append(element)
+        for element in a3:
+            result.append(element)
+        return np.array(result)
     def StartCountXatk(self, index, eMatrix, iMartix):
         u = np.array(iMartix.u)
         a0 = integrate.quad_vec(iMartix.A0, self.t[0], self.t[1],
@@ -100,7 +110,7 @@ class Xatk:
         a2 = integrate.quad_vec(iMartix.A1, self.t[0], self.t[1],
                                 args=(self.t[1], self.F, self.dF[1],
                                 self.Psi, self.dPsi[1], u, index, eMatrix))[0]
-        xat0 = np.hstack((a0, a1, a2))
+        xat0 = self.Soldering(a0, a1, a2)
         return xat0
     def ContinueCountXatk(self, fatk, atk, xatk):
         return np.dot(fatk, xatk) + atk
@@ -197,6 +207,29 @@ class dAtk:
         return self.datk
 
 
+def MatrixOfFisher(n ,s, H, dH, R, mFisher, cObject, xatk):
+    delta_M = np.array([[0., 0.], [0., 0.]])
+    for i in range(2):
+        for j in range(2):
+            A0 = reduce(np.dot, [dH[i], cObject.CountCi(I=0, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=0, n=n, s=s).transpose(), dH[j].transpose(), pow(R, -1)])
+
+            A1 = reduce(np.dot, [dH[i], cObject.CountCi(I=0, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=j + 1, n=n, s=s).transpose(), H.transpose(), pow(R, -1)])
+
+            A2 = reduce(np.dot, [H, cObject.CountCi(I=i + 1, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=0, n=n, s=s).transpose(), dH[j].transpose(), pow(R, -1)])
+
+            A3 = reduce(np.dot, [H, cObject.CountCi(I=i + 1, n=n, s=s),
+                                 xatk, xatk.transpose(),
+                                 cObject.CountCi(I=j + 1, n=n, s=s).transpose(), H.transpose(), pow(R, -1)])
+
+            delta_M[i][j] = A0 + A1 + A2 + A3
+    mFisher += delta_M
+    return mFisher
 
 
 def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
@@ -223,6 +256,28 @@ def dMatrixOfFisher(n ,s, H, dH, R, cObject, xatk, dxatk):
             delta_M[i][j] = A0 + A1 + A2 + A3
     return delta_M
 
+def IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix):
+    n = params['n']
+    t = params['t']
+    s = params['s']
+    N = params['N']
+    H = params['H']
+    dH = params['dH']
+    R = params['R']
+    mFisher = np.array([[0., 0.], [0., 0.]])
+
+    for k in range(N):
+        if k == 0:
+            xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix)
+            mFisher = MatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
+            continue
+
+        fatk = FaObject.CountFatk(t=[t[k], t[k + 1]], eMatrix=eMatrix)
+        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], index=k, eMatrix=eMatrix, iMatrix=iMatrix)
+        xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
+        mFisher = MatrixOfFisher(n, s, H, dH, R, mFisher, cObject, xatk)
+    return mFisher
+
 def dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix):
     n = params['n']
     t = params['t']
@@ -236,7 +291,7 @@ def dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, 
     datk, dxatk = [], np.zeros((N, r, N, 3 * n, 1))  # shape: N, alpha, betta
     for k in range(N):
         if k == 0:
-            xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix).reshape(3*n, 1)
+            xatk = xAObject.StartCountXatk(k, eMatrix, iMatrix)
             for betta in range(N):
                 for alpha in range(r):
                     datk.append(dAtkObject.CountAtk(t=[t[0], t[1]], n=n, k=k, betta=betta, alpha=alpha, eMatrix=eMatrix, iMatrix=iMatrix))
@@ -246,7 +301,7 @@ def dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, 
             continue
 
         fatk = FaObject.CountFatk(t=[t[k], t[k + 1]], eMatrix=eMatrix)
-        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], index=k, eMatrix=eMatrix, iMatrix=iMatrix).reshape(3*n,1)
+        atk = AtkObject.CountAtk(t=[t[k], t[k + 1]], index=k, eMatrix=eMatrix, iMatrix=iMatrix)
         xatk = xAObject.ContinueCountXatk(fatk, atk, xatk)
 
         for betta in range(N):
@@ -299,6 +354,7 @@ def main():
     dAtkObject = dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
     cObject = Ci()
 
+    # print(IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix))
     print(dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix))
 
 
