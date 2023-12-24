@@ -1,28 +1,21 @@
 import numpy as np
 import IIMF.IMF as IIMF
 
-class Plan:
+class StartPlan:
     def __GetU(self, q, N):
         U = []
         p = []
         for i in range(q):
-            U.append(np.array([[float(np.random.uniform(0.1, 10.)) for stepi in range(1)] for stepj in range(N)]))
+            U.append(np.array([[[float(np.random.uniform(0.1, 10.)) for stepi in range(1)]] for stepj in range(N)]))
             p.append(1.0 / q)
-        Ksik = {"Ustart": U, "pStart": p}
+        Ksik = {"U": U, "p": p}
         return Ksik
     def __MatrixCount(self, paramVar, Ksik, paramObj):
-        eMatrix = paramObj["eMatrix"]
         iMatrix = paramObj["iMatrix"]
-        xAObject = paramObj["xAObject"]
-        dxAObject = paramObj["dxAObject"]
-        FaObject = paramObj["FaObject"]
-        AtkObject = paramObj["AtkObject"]
-        dAtkObject = paramObj["dAtkObject"]
-        cObject = paramObj["cObject"]
         imfObject = IIMF.IMF()
 
-        U = Ksik["Ustart"]
-        p = Ksik["pStart"]
+        U = Ksik["U"]
+        p = Ksik["p"]
         q = paramVar["q"]
         matrix = np.zeros((2, 2))
 
@@ -31,12 +24,10 @@ class Plan:
             paramObj["iMatrix"] = iMatrix
             matrix += np.dot(p[i], imfObject.MainIMF(paramVar, paramObj))
         return matrix
-
-
-
     def MainCountPlan(self, paramVar, paramObj):
         q = paramVar["q"]
         N = paramVar["N"]
         Ksik = self.__GetU(q, N)
-        M = self.__MatrixCount(paramVar, Ksik, paramObj)
+        matrix = self.__MatrixCount(paramVar, Ksik, paramObj)
+        return Ksik, matrix
 

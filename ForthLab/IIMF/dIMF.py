@@ -26,7 +26,7 @@ class dIMF:
                 delta_M[i][j] = A0 + A1 + A2 + A3
         return delta_M
 
-    def dIMF(self, params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix):
+    def MaindIMF(self, params, paramObj):
         n = params['n']
         t = params['t']
         s = params['s']
@@ -35,6 +35,15 @@ class dIMF:
         H = params['H']
         dH = params['dH']
         R = params['R']
+
+        eMatrix = paramObj["eMatrix"]
+        iMatrix = paramObj["iMatrix"]
+        xAObject = paramObj["xAObject"]
+        dxAObject = paramObj["dxAObject"]
+        dAtkObject = paramObj["dAtkObject"]
+        FaObject = paramObj["FaObject"]
+        AtkObject = paramObj["AtkObject"]
+        cObject = paramObj["cObject"]
         dmFisher = np.zeros((N, r, 2, 2))
         datk, dxatk = [], np.zeros((N, r, N, 3 * n, 1))  # shape: N, alpha, betta
         for k in range(N):

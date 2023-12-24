@@ -1,18 +1,18 @@
-
 import numpy as np
 import IIMF.CiFile as ci
 import IIMF.Variables as variables
 import IIntegrate.Integrates as integ
-import IDPlan.StartPlan as DPlan
+import IDPlan.StartPlan as IStart
+import IDPlan.DPlan as IDplan
 
 def main():
     # Определение переменных
     m = v = nu = 1
     q = 4
-    r = 2 # Размерность вектора управления
-    n = 1 # Размерность вектора х0
+    r = 1 # Размерность вектора управления
+    n = 2 # Размерность вектора х0
     s = 2 # Количество производных по тетта
-    N = 4 # Число испытаний
+    N = 2 # Число испытаний
     tetta_true = np.array([-1.5, 1.0])
     tetta_false = np.array([-1., 1.])
     t = []
@@ -33,7 +33,7 @@ def main():
     varObject = variables.IMFVariablesSaver()
 
     # Choose Test or NoTest
-    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_false, N, "IMF", modeTest=n)
+    F, dF, Psi, dPsi, H, dH, R, dR, x0, dx0, u = varObject.Variables(tetta_true, N, "IMF", modeTest=n)
 
     eMatrix = integ.TransisionMatrix()
     eMatrix.rP = param
@@ -44,6 +44,9 @@ def main():
     FaObject = integ.Fatk(F, dF)
     AtkObject = integ.Atk(F, dF, Psi, dPsi, x0=x0, dx0=dx0)
     dAtkObject = integ.dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
+    startObj = IStart.StartPlan()
+    DPlanObj = IDplan.DPlan()
+
     cObject = ci.Ci()
 
     paramVar = {"F": F, "dF": dF, "Psi": Psi, "dPsi": dPsi, "H": H, "dH": dH, "R": R,
@@ -51,11 +54,24 @@ def main():
     paramObj = {"cObject": cObject, "xAObject": xAObject, "dxAObject": dxAObject, "FaObject": FaObject,
                 "AtkObject": AtkObject, "dAtkObject": dAtkObject, "eMatrix": eMatrix, "iMatrix": iMatrix}
 
-    m = DPlan.Plan()
-    m.MainCountPlan(paramVar, paramObj)
+    for step in range(N):
+        Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)
+        KsikNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dUXMKsik")
+
+
+
+
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)
-
+#     eMatrix = paramObj["eMatrix"]
+#         iMatrix = paramObj["iMatrix"]
+#         xAObject = paramObj["xAObject"]
+#         dxAObject = paramObj["dxAObject"]
+#         FaObject = paramObj["FaObject"]
+#         AtkObject = paramObj["AtkObject"]
+#         dAtkObject = paramObj["dAtkObject"]
+#         cObject = paramObj["cObject"]
+#         imfObject = IIMF.IMF()
 
 
 
