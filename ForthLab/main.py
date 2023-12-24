@@ -57,7 +57,7 @@ def main():
     for step in range(N):
         Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)
         KsikNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dUXMKsik")
-
+        pNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dPXMKsik")
 
 
 

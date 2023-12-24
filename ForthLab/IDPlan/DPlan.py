@@ -10,9 +10,24 @@ class DPlan:
         U = self.__LineU(Ksik["U"])
         p = Ksik["p"]
         if mode == "dUXMKsik":
-            result = minimize(self.__XMKsikForUi, U, args=(p, paramVar, paramObj), method='SLSQP', jac=self.__dXMKsikForUi, bounds=Bounds([0.]*N*q, [10.]*q*N))
+            result = minimize(self.__XMKsikForUi, U, args=(p, paramVar, paramObj), method='SLSQP',
+                              jac=self.__dXMKsikForUi, bounds=Bounds([0.]*N*q, [10.]*q*N))
             KsikNew = self.__ReturnMatrixU(result.__getitem__("x"), q, N)
             return KsikNew
+        elif mode == "dPXMKsik":
+
+            start_pos = np.ones(q) * 0.
+
+            # Says one minus the sum of all variables must be zero
+
+            cons = ({'type': 'eq', 'fun': lambda x: 1 - sum(x)})
+            # Required to have non negative values
+            bnds = tuple((0, 1) for x in start_pos)
+
+            result = minimize(self.__XMKsikForPi, p, args=(U, paramVar, paramObj), method='SLSQP',
+                              jac=self.__dXMKsikForPi, bounds=bnds, constraints=cons)
+            pi = result.__getitem__("x")
+            return pi
 
     def __LineU(self, U):
         result = []
@@ -73,7 +88,15 @@ class DPlan:
     #######################____SecondPointFinish____#######################
 
     #######################____ThirdPointStart____#######################
-    def __dXMKiForPi(self, p, U, paramVar, paramObj):
+    def __XMKsikForPi(self, p, U, paramVar, paramObj):
+        N = paramVar["N"]
+        q = paramVar["q"]
+        U = self.__ReturnMatrixU(U, q, N)
+        result = (-1.) * np.log(np.linalg.det(self.__MatrixCount(U, p, paramVar, paramObj)))
+        return result
+
+
+    def __dXMKsikForPi(self, p, U, paramVar, paramObj):
         N = paramVar["N"]
         q = paramVar["q"]
         iMatrix = paramObj["iMatrix"]
@@ -87,5 +110,7 @@ class DPlan:
             paramObj["iMatrix"] = iMatrix
             C0 = (np.dot(matrix, imfObj.MainIMF(paramVar, paramObj))).trace()
             result.append((-1.) * C0)
-        
+
         return result
+
+    #######################____ThirdPointFinish____#######################
