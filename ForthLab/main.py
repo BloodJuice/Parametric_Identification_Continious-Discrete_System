@@ -4,6 +4,7 @@ import IIMF.Variables as variables
 import IIntegrate.Integrates as integ
 import IDPlan.StartPlan as IStart
 import IDPlan.DPlan as IDplan
+import IDPlan.Test1ForthPoint as ITest4
 
 def main():
     # Определение переменных
@@ -16,6 +17,8 @@ def main():
     tetta_true = np.array([-1.5, 1.0])
     tetta_false = np.array([-1., 1.])
     t = []
+
+    sigm1 = 0.01
 
     if n == 1:
         count = 0
@@ -46,6 +49,7 @@ def main():
     dAtkObject = integ.dAtk(F, dF, Psi, dPsi, x0=x0, dx0=dx0, N=N)
     startObj = IStart.StartPlan()
     DPlanObj = IDplan.DPlan()
+    TestForthObj = ITest4.Test1ForthPoint()
 
     cObject = ci.Ci()
 
@@ -54,12 +58,20 @@ def main():
     paramObj = {"cObject": cObject, "xAObject": xAObject, "dxAObject": dxAObject, "FaObject": FaObject,
                 "AtkObject": AtkObject, "dAtkObject": dAtkObject, "eMatrix": eMatrix, "iMatrix": iMatrix}
 
-    for step in range(N):
-        Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)
+    #####___Start___#####
+
+    Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)  # Думаю, matrix можно убрать
+    while(1):
+
         KsikNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dUXMKsik")
         pNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dPXMKsik")
-
-
+        res = TestForthObj.MainCounter(Ksik["U"], KsikNew, pNew, Ksik["p"], paramVar)
+        if res < sigm1:
+            print(f"res\t{res}")
+            break
+        else:
+            Ksik["U"] = KsikNew
+            Ksik["p"] = pNew
 
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)

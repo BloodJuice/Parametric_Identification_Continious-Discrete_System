@@ -7,8 +7,14 @@ class DPlan:
     def MainDPlan(self, Ksik, paramVar, paramObj, mode):
         N = paramVar["N"]
         q = paramVar["q"]
-        U = self.__LineU(Ksik["U"])
+
+        U = Ksik["U"]
         p = Ksik["p"]
+        matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
+        U = self.__LineU(Ksik["U"])
+
+        paramVar["matrix"] = matrix
+
         if mode == "dUXMKsik":
             result = minimize(self.__XMKsikForUi, U, args=(p, paramVar, paramObj), method='SLSQP',
                               jac=self.__dXMKsikForUi, bounds=Bounds([0.]*N*q, [10.]*q*N))
@@ -70,7 +76,8 @@ class DPlan:
         result = []
 
         U = self.__ReturnMatrixU(U, q, N)
-        matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
+        # matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
+        matrix = paramVar["matrix"]
         for i in range(q):
             iMatrix.u = U[i]
             paramObj["iMatrix"] = iMatrix
@@ -104,7 +111,8 @@ class DPlan:
         result = []
 
         U = self.__ReturnMatrixU(U, q, N)
-        matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
+        # matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
+        matrix = paramVar["matrix"]
         for i in range(q):
             iMatrix.u = U[i]
             paramObj["iMatrix"] = iMatrix
