@@ -83,11 +83,14 @@ def main():
 
         paramVar["Uk"] = Uk
         muNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="testMu")
-        if (abs(muNew - eta)) < sigm2:
+        if (abs(muNew - eta)) <= sigm2:
             print(muNew - eta)
             break
         elif(muNew > eta):
             print("Go to 7 step")
+        else:
+            continue
+
 
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)

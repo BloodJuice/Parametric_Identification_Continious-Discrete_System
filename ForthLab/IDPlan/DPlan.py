@@ -45,7 +45,9 @@ class DPlan:
         elif mode == "testMu":
             Uk = paramVar["Uk"]
             del paramVar["Uk"]
-            result = self.__MuUk(Uk, U, p, paramVar, paramObj)
+            # Здесь нужен минус, т.к. я использую функцию для максимизации, а это означает, что
+            # в функции лежит минус, которого там изначально быть вообще не должно.
+            result = (-1.) * self.__MuUk(Uk, U, p, paramVar, paramObj)
             return result
 
     def __LineU(self, U):
@@ -155,8 +157,9 @@ class DPlan:
         U0 = self.__VectorU(U0, N)
         iMatrix.u = U0
         Ksik = self.__ReturnMatrixU(U, q, N)
+        matrix = np.linalg.inv(paramVar["matrix"])
 
-        result = (-1.) * (np.dot(np.linalg.inv(self.__MatrixCount(Ksik, p, paramVar, paramObj)),
+        result = (-1.) * (np.dot(matrix,
                          imfObj.MainIMF(paramVar, paramObj))).trace()
         return result
     def __dMuUk(self, U0, U, p, paramVar, paramObj):
@@ -174,3 +177,4 @@ class DPlan:
         C0 = (np.dot(matrix, dimfObj.MaindIMF(paramVar, paramObj))).trace()
         result.append((-1.) * C0)
         return result
+
