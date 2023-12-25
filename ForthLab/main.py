@@ -82,25 +82,29 @@ def main():
         paramVar["Uk"] = np.random.uniform(0.1, 10., N)
         Uk = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="mu")
 
-
         paramVar["Uk"] = Uk
         muNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="testMu")
         if (abs(muNew - eta)) <= sigm2:
-            print(muNew - eta)
             break
         elif(muNew > eta):
+            print(muNew - eta)
+            paramVar["Uk"] = Uk
+            tk = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="tkSearcher")
+            KsikLine = CleanPlanObj.LineU(Ksik["U"])
+            KsikNew, pNew = CleanPlanObj.RechargeUkPk(tk, KsikLine, Uk, pNew)
+            KsikNew, pNew = CleanPlanObj.CleaningPlan(KsikNew, pNew, 0.01, N)
+            Ksik["U"] = KsikNew.copy()
+            Ksik["p"] = pNew
+            paramVar["q"] = len(pNew)
 
-            print("Go to 7 step")
-            break
+            print(f"KsikNew: {KsikNew}"
+                  f"\npNew: {pNew}\n")
+            continue
         else:
             continue
-    paramVar["Uk"] = Uk
-    tk = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="tkSearcher")
-    KsikLine = CleanPlanObj.LineU(Ksik["U"])
-    KsikNew, pNew = CleanPlanObj.RechargeUkPk(tk, KsikLine, Uk, pNew)
-    KsikNew, pNew = CleanPlanObj.CleaningPlan(KsikNew, pNew, 0.0001, N)
-    print(f"KsikNew: {KsikNew}"
-          f"pNew: {pNew}")
+    print(f"__________________THE_END!!!______________________\n"
+          f"KsikNew: {KsikNew}"
+          f"\npNew: {pNew}")
 
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)

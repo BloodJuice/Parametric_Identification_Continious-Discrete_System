@@ -1,6 +1,17 @@
 import numpy as np
 
 class CleanPlan:
+    def ReturnMatrixU(self, U, q, N):
+        result = []
+        globalcount = 0
+        for i in range(q):
+            line = []
+            for j in range(N):
+                line.append([[U[globalcount]]])
+                globalcount += 1
+            result.append(np.array(line.copy()))
+        return result
+
     def LineU(self, U):
         result = []
         for line in U:
@@ -45,7 +56,7 @@ class CleanPlan:
             for stepi in range(len(newp)):
                 newp[stepi] *= (1.0 / pSum)
 
-        newKsik = (np.array(newKsik)).reshape(len(newp), N, 1)
-        newp = np.array(newp)
+        newKsik = self.ReturnMatrixU(np.array(newKsik).reshape(len(newp)*N,), len(newp), N)
+        newp = np.array(newp).reshape(len(newp), )
         return newKsik, newp
 

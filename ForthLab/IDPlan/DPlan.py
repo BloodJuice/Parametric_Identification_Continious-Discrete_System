@@ -161,7 +161,6 @@ class DPlan:
 
         U0 = self.__VectorU(U0, N)
         iMatrix.u = U0
-        Ksik = self.__ReturnMatrixU(U, q, N)
         matrix = np.linalg.inv(paramVar["matrix"])
 
         result = (-1.) * (np.dot(matrix,
@@ -179,8 +178,10 @@ class DPlan:
 
         iMatrix.u = self.__VectorU(U0, N)
         paramObj["iMatrix"] = iMatrix
-        C0 = (np.dot(matrix, dimfObj.MaindIMF(paramVar, paramObj))).trace()
-        result.append((-1.) * C0)
+        
+        dimf = dimfObj.MaindIMF(paramVar, paramObj)
+        for i in range(N):
+            result.append((-1.) * (np.dot(matrix, dimf[i][0])).trace())
         return result
 
     #######################____SixPointFinish____########################
