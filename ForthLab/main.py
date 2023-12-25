@@ -5,6 +5,7 @@ import IIntegrate.Integrates as integ
 import IDPlan.StartPlan as IStart
 import IDPlan.DPlan as IDplan
 import IDPlan.Test1ForthPoint as ITest4
+import IDPlan.CleanPlan as ICleanPlan
 
 def main():
     # Определение переменных
@@ -48,6 +49,7 @@ def main():
     startObj = IStart.StartPlan()
     DPlanObj = IDplan.DPlan()
     TestForthObj = ITest4.Test1ForthPoint()
+    CleanPlanObj = ICleanPlan.CleanPlan()
 
     cObject = ci.Ci()
 
@@ -87,10 +89,18 @@ def main():
             print(muNew - eta)
             break
         elif(muNew > eta):
+
             print("Go to 7 step")
+            break
         else:
             continue
-
+    paramVar["Uk"] = Uk
+    tk = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="tkSearcher")
+    KsikLine = CleanPlanObj.LineU(Ksik["U"])
+    KsikNew, pNew = CleanPlanObj.RechargeUkPk(tk, KsikLine, Uk, pNew)
+    KsikNew, pNew = CleanPlanObj.CleaningPlan(KsikNew, pNew, 0.0001, N)
+    print(f"KsikNew: {KsikNew}"
+          f"pNew: {pNew}")
 
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)

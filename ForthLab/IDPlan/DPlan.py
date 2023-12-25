@@ -49,6 +49,11 @@ class DPlan:
             # в функции лежит минус, которого там изначально быть вообще не должно.
             result = (-1.) * self.__MuUk(Uk, U, p, paramVar, paramObj)
             return result
+        elif mode == "tkSearcher":
+            Uk = paramVar["Uk"]
+            XM = minimize(self.__XMksikForTk, x0=np.random.uniform(0, 1), args=(Uk, U, p.copy(), paramVar, paramObj), method="COBYLA",
+                          bounds=Bounds(0., 1.))
+            return XM.__getitem__("x")
 
     def __LineU(self, U):
         result = []
@@ -139,7 +144,7 @@ class DPlan:
         return result
 
     #######################____ThirdPointFinish____#######################
-    #######################____ForthPointStart____########################
+    #######################____SixPointStart____########################
 
     def __VectorU(self, U, N):
         result = []
@@ -177,4 +182,23 @@ class DPlan:
         C0 = (np.dot(matrix, dimfObj.MaindIMF(paramVar, paramObj))).trace()
         result.append((-1.) * C0)
         return result
+
+    #######################____SixPointFinish____########################
+
+    #######################____SevenPointStart____########################
+    def __RechargeUkPk(self, tk, U, Uk, pk):
+        ksikNew = np.hstack((U, Uk))
+        n = len(pk)
+        for i in range(n):
+            pk[i] = (1. - tk) * pk[i]
+        pNew = np.hstack((pk, tk))
+        return ksikNew, pNew
+    def __XMksikForTk(self, tk, Uk, U, p, paramVar, paramObj):
+        q = paramVar["q"]
+        N = paramVar["N"]
+        Unew, pNew = self.__RechargeUkPk(tk, U, Uk, p)
+
+        Unew = self.__ReturnMatrixU(Unew, q, N)
+
+        return (-1.) * np.linalg.det(self.__MatrixCount(Unew, pNew, paramVar, paramObj))
 
