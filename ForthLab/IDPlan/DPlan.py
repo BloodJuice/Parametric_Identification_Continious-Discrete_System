@@ -10,7 +10,7 @@ class DPlan:
 
         U = Ksik["U"]
         p = Ksik["p"]
-        matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
+        matrix = (self.__MatrixCount(U, p, paramVar, paramObj))
         U = self.__LineU(Ksik["U"])
 
         paramVar["matrix"] = matrix
@@ -34,6 +34,19 @@ class DPlan:
                               jac=self.__dXMKsikForPi, bounds=bnds, constraints=cons)
             pi = result.__getitem__("x")
             return pi
+        elif mode == "mu":
+            Urand = paramVar["Uk"]
+            del paramVar["Uk"]
+
+            result = minimize(self.__MuUk, Urand, args=(U, p, paramVar, paramObj), method='SLSQP',
+                              jac=self.__dMuUk, bounds=Bounds([0.] * N, [10.] * N))
+            UkNew = (result.__getitem__("x"))
+            return UkNew
+        elif mode == "testMu":
+            Uk = paramVar["Uk"]
+            del paramVar["Uk"]
+            result = self.__MuUk(Uk, U, p, paramVar, paramObj)
+            return result
 
     def __LineU(self, U):
         result = []
@@ -77,7 +90,7 @@ class DPlan:
 
         U = self.__ReturnMatrixU(U, q, N)
         # matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
-        matrix = paramVar["matrix"]
+        matrix = np.linalg.inv(paramVar["matrix"])
         for i in range(q):
             iMatrix.u = U[i]
             paramObj["iMatrix"] = iMatrix
@@ -89,7 +102,8 @@ class DPlan:
         N = paramVar["N"]
         q = paramVar["q"]
         U = self.__ReturnMatrixU(U, q, N)
-        result = (-1.) * np.log(np.linalg.det(self.__MatrixCount(U, p, paramVar, paramObj)))
+        matrix = paramVar["matrix"]
+        result = (-1.) * np.log(np.linalg.det(matrix))
         return result
 
     #######################____SecondPointFinish____#######################
@@ -99,7 +113,8 @@ class DPlan:
         N = paramVar["N"]
         q = paramVar["q"]
         U = self.__ReturnMatrixU(U, q, N)
-        result = (-1.) * np.log(np.linalg.det(self.__MatrixCount(U, p, paramVar, paramObj)))
+        matrix = paramVar["matrix"]
+        result = (-1.) * np.log(np.linalg.det(matrix))
         return result
 
 
@@ -112,7 +127,7 @@ class DPlan:
 
         U = self.__ReturnMatrixU(U, q, N)
         # matrix = np.linalg.inv(self.__MatrixCount(U, p, paramVar, paramObj))
-        matrix = paramVar["matrix"]
+        matrix = np.linalg.inv(paramVar["matrix"])
         for i in range(q):
             iMatrix.u = U[i]
             paramObj["iMatrix"] = iMatrix
@@ -122,3 +137,40 @@ class DPlan:
         return result
 
     #######################____ThirdPointFinish____#######################
+    #######################____ForthPointStart____########################
+
+    def __VectorU(self, U, N):
+        result = []
+        for i in range(N):
+            result.append([[U[i]]])
+        result = np.array(result)
+        return result
+    def __MuUk(self, U0, U, p, paramVar, paramObj):
+        N = paramVar["N"]
+        q = paramVar["q"]
+        imfObj = IIMF.IMF()
+        iMatrix = paramObj["iMatrix"]
+
+
+        U0 = self.__VectorU(U0, N)
+        iMatrix.u = U0
+        Ksik = self.__ReturnMatrixU(U, q, N)
+
+        result = (-1.) * (np.dot(np.linalg.inv(self.__MatrixCount(Ksik, p, paramVar, paramObj)),
+                         imfObj.MainIMF(paramVar, paramObj))).trace()
+        return result
+    def __dMuUk(self, U0, U, p, paramVar, paramObj):
+        N = paramVar["N"]
+        q = paramVar["q"]
+        iMatrix = paramObj["iMatrix"]
+        dimfObj = dIIMF.dIMF()
+        result = []
+
+        U = self.__ReturnMatrixU(U, q, N)
+        matrix = np.linalg.inv(paramVar["matrix"])
+
+        iMatrix.u = self.__VectorU(U0, N)
+        paramObj["iMatrix"] = iMatrix
+        C0 = (np.dot(matrix, dimfObj.MaindIMF(paramVar, paramObj))).trace()
+        result.append((-1.) * C0)
+        return result

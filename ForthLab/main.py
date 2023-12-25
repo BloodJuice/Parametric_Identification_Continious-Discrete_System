@@ -18,8 +18,6 @@ def main():
     tetta_false = np.array([-1., 1.])
     t = []
 
-    sigm1 = 0.01
-
     if n == 1:
         count = 0
         param = [1, 1, 1, 2] # Reshape params for test
@@ -58,10 +56,14 @@ def main():
     paramObj = {"cObject": cObject, "xAObject": xAObject, "dxAObject": dxAObject, "FaObject": FaObject,
                 "AtkObject": AtkObject, "dAtkObject": dAtkObject, "eMatrix": eMatrix, "iMatrix": iMatrix}
 
+
     #####___Start___#####
+    sigm1 = 0.01
+    sigm2 = 0.01
+    eta = s
 
     Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)  # Думаю, matrix можно убрать
-    while(1):
+    while 1:
 
         KsikNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dUXMKsik")
         pNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dPXMKsik")
@@ -72,6 +74,20 @@ def main():
         else:
             Ksik["U"] = KsikNew
             Ksik["p"] = pNew
+    Ksik["U"] = KsikNew
+    Ksik["p"] = pNew
+    while 1:
+        paramVar["Uk"] = np.random.uniform(0.1, 10., N)
+        Uk = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="mu")
+
+
+        paramVar["Uk"] = Uk
+        muNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="testMu")
+        if (abs(muNew - eta)) < sigm2:
+            print(muNew - eta)
+            break
+        elif(muNew > eta):
+            print("Go to 7 step")
 
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)
