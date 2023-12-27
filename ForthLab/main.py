@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import IIMF.CiFile as ci
 import IIMF.Variables as variables
@@ -60,11 +62,12 @@ def main():
 
 
     #####___Start___#####
-    sigm1 = 0.01
-    sigm2 = 0.01
+    sigm1 = 0.001
+    sigm2 = 0.001
     eta = s
 
     Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)  # Думаю, matrix можно убрать
+    XMStart = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="countTestPlan")
     while 1:
 
         KsikNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="dUXMKsik")
@@ -72,8 +75,10 @@ def main():
         res = TestForthObj.MainCounter(Ksik["U"], KsikNew, pNew, Ksik["p"], paramVar)
         if res < sigm1:
             print(f"res\t{res}")
+            print(f"Let's go to next page")
             break
         else:
+            print(f"res\t{res}")
             Ksik["U"] = KsikNew
             Ksik["p"] = pNew
     Ksik["U"] = KsikNew
@@ -84,7 +89,16 @@ def main():
 
         paramVar["Uk"] = Uk
         muNew = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="testMu")
-        if (abs(muNew - eta)) <= sigm2:
+        if (abs(muNew - eta)) < sigm2 or math.isclose(abs(muNew - eta), sigm2):
+            paramVar["Uk"] = Uk
+            tk = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="tkSearcher")
+            KsikLine = CleanPlanObj.LineU(Ksik["U"])
+            KsikNew, pNew = CleanPlanObj.RechargeUkPk(tk, KsikLine, Uk, pNew)
+            KsikNew, pNew = CleanPlanObj.CleaningPlan(KsikNew, pNew, 0.01, N)
+            Ksik["U"] = KsikNew.copy()
+            Ksik["p"] = pNew
+            paramVar["q"] = len(pNew)
+            XMEnd = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="countTestPlan")
             break
         elif(muNew > eta):
             print(muNew - eta)
@@ -105,7 +119,8 @@ def main():
     print(f"__________________THE_END!!!______________________\n"
           f"KsikNew: {KsikNew}"
           f"\npNew: {pNew}")
-
+    print(f"XMStart:\t{XMStart}\n"
+          f"XMEnd:\t{XMEnd}")
     # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
     # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)
 #     eMatrix = paramObj["eMatrix"]
