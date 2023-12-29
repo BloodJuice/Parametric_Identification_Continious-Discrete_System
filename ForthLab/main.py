@@ -67,6 +67,7 @@ def main():
     eta = s
 
     Ksik, matrix = startObj.MainCountPlan(paramVar, paramObj)  # Думаю, matrix можно убрать
+    print(Ksik["U"])
     XMStart = DPlanObj.MainDPlan(Ksik, paramVar, paramObj, mode="countTestPlan")
     while 1:
 
@@ -121,17 +122,7 @@ def main():
           f"\npNew: {pNew}")
     print(f"XMStart:\t{XMStart}\n"
           f"XMEnd:\t{XMEnd}")
-    # IMF(params, cObject, xAObject, FaObject, AtkObject, eMatrix, iMatrix)
-    # dIMF(params, cObject, xAObject, dxAObject, FaObject, AtkObject, dAtkObject, eMatrix, iMatrix)
-#     eMatrix = paramObj["eMatrix"]
-#         iMatrix = paramObj["iMatrix"]
-#         xAObject = paramObj["xAObject"]
-#         dxAObject = paramObj["dxAObject"]
-#         FaObject = paramObj["FaObject"]
-#         AtkObject = paramObj["AtkObject"]
-#         dAtkObject = paramObj["dAtkObject"]
-#         cObject = paramObj["cObject"]
-#         imfObject = IIMF.IMF()
+
 
 
 
