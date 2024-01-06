@@ -92,7 +92,7 @@ class Gradients():
                                                                                               dxtk[alpha][i][k + 1])
 
                 # Point 9
-                    eps[i][j][k + 1] = y[i][j][k + 1] - np.dot(H, xt[i][k + 1])
+                    eps[i][0][k + 1] = y[i][0][k + 1] - np.dot(H, xt[i][k + 1])
                     for alpha in range(s):
                         delta[alpha] += np.dot(np.dot(deps[alpha][i][j][k + 1].transpose(), pow(R, -1)), eps[i][j][k + 1]) - \
                                 (0.5) * np.dot(np.dot(eps[i][j][k + 1].transpose(), pow(R, -1)), dR[alpha]) * \

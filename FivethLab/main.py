@@ -15,13 +15,14 @@ import first as First
 
 def main():
     # Определение переменных
-    m = v = nu = 1
+    m = nu = 1
     q = 4
     r = 1 # Размерность вектора управления
     n = 2 # Размерность вектора х0
     s = 2 # Количество производных по тетта
     N = 4 # Число испытаний
     ki = [1. for i in range(q)]
+    v = sum(ki)
     uStart = np.array([[1.] for i in range(q)])
 
     tetta_true = np.array([-1.5, 1.0])
@@ -78,11 +79,12 @@ def main():
     print(f"\ntettaOld:\t{tettaNew}")
 
 
-    ki, v = rounding(pNew)
+    ki, v = rounding(pNew, params)
 
     params["ki"] = ki
     params["v"] = v
     params["u"] = KsikNew
+    params["q"] = len(pNew)
     tettaNew = First.first(params)
     print(f"\ntettaNew:\t{tettaNew}")
     return 0
@@ -207,7 +209,7 @@ def ForthLab(params):
 
 
 
-def rounding(pNew):
+def rounding(pNew, params):
     sigmHatch, sigmTwiceHatch, vHatch, vTwiceHatch, sigm, v1, pointThree = [], [], 0, 0, [], 0, []
     q, v = len(pNew), 10
     for i in range(q):
@@ -221,29 +223,29 @@ def rounding(pNew):
 
     # Point 2
     if vHatch < vTwiceHatch:
-        for i in range(q):
+        for i in range(int(q)):
             sigm.append(sigmHatch[i])
         v1 = vHatch
     else:
-        for i in range(q):
+        for i in range(int(q)):
             sigm.append(sigmTwiceHatch[i])
         v1 = vTwiceHatch
 
     # Point 3
-    for i in range(q):
+    for i in range(int(q)):
         pointThree.append(v * pNew[i] - sigm[i])
     pointThree = sorted(pointThree, reverse=True)
     # print("\npointThree:\n", pointThree, "\nsigm\n", sigm, "\nv1:\n", v1)
 
     s = np.zeros(q)
-    for i in range(v1):
-        for j in range(q):
+    for i in range(int(v1)):
+        for j in range(int(q)):
             if pointThree[i] == (v * pNew[j] - sigm[j]):
                 s[j] = 1
             else:
                 s[j] = 0
-    kNew = np.zeros(q)
-    for i in range(q):
+    kNew = np.zeros(int(q))
+    for i in range(int(q)):
         kNew[i] = sigm[i] + s[i]
     return kNew, v
 

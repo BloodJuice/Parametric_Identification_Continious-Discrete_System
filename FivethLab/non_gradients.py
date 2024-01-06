@@ -36,7 +36,7 @@ class Non_gradients():
                 dxdtk_One = odeint(valuesAndGradX.dxdt, xt[i][k].reshape(2,), tNow, args=(F, Psi, H, R, x0, U[i][k]))[1]
                 xt[i][k + 1] = (np.array(dxdtk_One)).reshape(2, 1)
                 for j in range(int(ki[i])):
-                    epstk = ytk[i][j][k + 1] - np.dot(H, xt[i][k + 1])
+                    epstk = ytk[i][0][k + 1] - np.dot(H, xt[i][k + 1])
                     delta += np.dot(np.dot(epstk.transpose(), pow(R, -1)), epstk)
             xi += delta
         return xi[0][0] / 2.0
